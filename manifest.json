@@ -1,0 +1,18 @@
+{
+  "short_name": "TripMaster",
+  "name": "Trip Master 旅遊大師",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/826/826070.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#4a90e2",
+  "display": "standalone",
+  "scope": "./",
+  "theme_color": "#4a90e2",
+  "description": "我的雲端同步旅遊行程 App"
+}

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <title>Trip Master Cloud v12</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+
+    <style>
+        /* 沿用 v9/v10 的精美 CSS (省略以節省空間) */
+        :root { --p: #4a90e2; --bg: #f0f2f5; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
+        /* ... 之前的 .item, .transit-area 樣式 ... */
+    </style>
+</head>
+<body>
+
+<div style="background:white; padding:15px; text-align:center; font-weight:bold; border-bottom:1px solid #ddd;">🌍 多人同步行程 (v12)</div>
+
+<div id="dayTabs" style="display:flex; overflow-x:auto; padding:10px; gap:8px;"></div>
+
+<div id="inputCard" class="card" style="padding:15px; background:white; margin:10px; border-radius:15px;">
+    <button onclick="addItinerary()" style="width:100%; background:var(--p); color:white; border:none; padding:12px; border-radius:8px;">同步到雲端</button>
+</div>
+
+<div id="itineraryList" class="timeline" style="padding:15px;"></div>
+
+<script>
+    // 2. 🔴 填寫你的 Firebase 資訊
+    const firebaseConfig = {
+  apiKey: "AIzaSyB1XHUmaPeLZwUrab7Moo8OOEuwSbI5YfA",
+  authDomain: "my-trip-app-ed352.firebaseapp.com",
+  databaseURL: "https://my-trip-app-ed352-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "my-trip-app-ed352",
+  storageBucket: "my-trip-app-ed352.firebasestorage.app",
+  messagingSenderId: "240010472176",
+  appId: "1:240010472176:web:dcb3367130ce4daf597035",
+  measurementId: "G-D47YT5NVGZ"
+};
+
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    // 設定這趟旅程的唯一 ID (你可以同旅伴約定一個 secret ID)
+    const tripId = "japan_trip_2026_001"; 
+    const tripRef = db.ref('trips/' + tripId);
+
+    let currentDay = 1;
+    let localData = { days: { 1: { itinerary: [], expenses: [] } } };
+
+    // 3. 📡 核心：即時監聽雲端數據
+    tripRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            localData = data;
+            render(); // 只要有人改，全體同時更新畫面
+        }
+    });
+
+    // 4. 更新 addItinerary 函數
+    function addItinerary() {
+        const time = document.getElementById('pTime').value;
+        const desc = document.getElementById('pDesc').value;
+        // ... (獲取其他資料) ...
+
+        if (!localData.days[currentDay]) localData.days[currentDay] = { itinerary: [], expenses: [] };
+        
+        localData.days[currentDay].itinerary.push({
+            id: Date.now(),
+            time, desc, // ... 
+            routes: [] // 這裡放入之前的交通方案邏輯
+        });
+
+        // 直接推送到雲端，不再用 LocalStorage
+        tripRef.set(localData); 
+        alert("旅伴的手機已同步更新！");
+    }
+
+    function render() {
+        // (沿用之前的 render 邏輯，渲染出行程表)
+    }
+</script>
+</body>
+</html>
