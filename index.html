@@ -3,85 +3,234 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json">
-    <title>Trip Master Cloud v12</title>
+    <title>Trip Master v15 - GPS Navigation</title>
     
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <style>
-        /* 沿用 v9/v10 的精美 CSS (省略以節省空間) */
-        :root { --p: #4a90e2; --bg: #f0f2f5; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
-        /* ... 之前的 .item, .transit-area 樣式 ... */
+        :root { --p: #4a90e2; --s: #50e3c2; --t: #f39c12; --bg: #f0f2f5; --danger: #ff5a5f; --google: #4285f4; --nav: #34a853; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 15px; padding-bottom: 120px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .sync-banner { font-size: 11px; text-align: center; padding: 5px; background: #e8f5e9; color: #2e7d32; border-radius: 10px; margin-bottom: 10px; font-weight: bold; }
+        .day-nav-wrapper { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; }
+        .day-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; flex: 1; scrollbar-width: none; }
+        .day-tabs::-webkit-scrollbar { display: none; }
+        .day-tab { padding: 8px 16px; background: white; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; white-space: nowrap; font-size: 14px; }
+        .day-tab.active { background: var(--p); color: white; border-color: var(--p); }
+        .btn-add-day { width: 35px; height: 35px; border-radius: 50%; border: none; background: white; color: var(--p); font-size: 20px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .full { grid-column: span 2; }
+        input { padding: 12px; border: 1px solid #eee; border-radius: 8px; font-size: 14px; background: #fafafa; width: 100%; box-sizing: border-box; }
+        label { font-size: 11px; color: #666; font-weight: bold; margin-bottom: 2px; display: block; }
+        button { padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-add { background: var(--p); color: white; margin-top: 10px; width: 100%; }
+        .btn-sub { background: #f8f9fa; color: #666; font-size: 11px; margin-top: 5px; border: 1px dashed #ccc; width: 100%; }
+        .timeline { position: relative; padding-left: 15px; border-left: 2px solid #e0e0e0; margin-left: 10px; }
+        .item { background: white; border-radius: 12px; margin-bottom: 15px; position: relative; box-shadow: 0 3px 6px rgba(0,0,0,0.05); display: flex; overflow: hidden; }
+        .item-img { width: 100px; background-size: cover; background-position: center; background-color: #eee; flex-shrink: 0; }
+        .item-content { padding: 15px; flex: 1; position: relative; }
+        .transit-area { margin: -5px 0 20px 25px; padding-left: 15px; border-left: 2px dashed #ddd; }
+        .transit-info { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 10px; font-size: 13px; }
+        .transit-badge { display: inline-block; background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; margin-bottom: 5px; }
+        .nav-btn-group { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+        .btn-nav-gps { background: var(--nav); color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 11px; }
+        .btn-nav-step { border: 1px solid var(--p); color: var(--p); padding: 5px 11px; border-radius: 6px; text-decoration: none; font-size: 11px; }
+        .total-section { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+        .del-btn { position: absolute; top: 10px; right: 10px; color: #ccc; cursor: pointer; background:none; border:none; font-size: 18px; }
+        .edit-btn { position: absolute; top: 10px; right: 35px; color: var(--p); cursor: pointer; background:none; border:none; font-size: 16px; }
     </style>
 </head>
 <body>
 
-<div style="background:white; padding:15px; text-align:center; font-weight:bold; border-bottom:1px solid #ddd;">🌍 多人同步行程 (v12)</div>
+<div class="container">
+    <div class="sync-banner" id="syncStatus">● 雲端連線中...</div>
+    <h2 style="text-align:center;">✈️ Trip Master Cloud v15</h2>
 
-<div id="dayTabs" style="display:flex; overflow-x:auto; padding:10px; gap:8px;"></div>
+    <div class="day-nav-wrapper">
+        <div id="dayTabs" class="day-tabs"></div>
+        <button class="btn-add-day" onclick="addDay()">＋</button>
+    </div>
 
-<div id="inputCard" class="card" style="padding:15px; background:white; margin:10px; border-radius:15px;">
-    <button onclick="addItinerary()" style="width:100%; background:var(--p); color:white; border:none; padding:12px; border-radius:8px;">同步到雲端</button>
+    <div class="card">
+        <div class="input-grid">
+            <div class="field"><label>活動開始</label><input type="time" id="pTime"></div>
+            <div class="field"><label>停留 (分鐘)</label><input type="number" id="pStay"></div>
+            <input type="text" id="pDesc" class="full" placeholder="活動內容 (例: 淺草寺)">
+            <input type="text" id="pLoc" class="full" placeholder="目的地 (地址或地名)">
+            
+            <div class="full" style="border-top:1px solid #eee; margin-top:10px; padding-top:10px;">
+                <label>🚍 交通設定 (前往下站時間)</label>
+                <input type="number" id="pTransitTime" placeholder="路程時間 (分鐘)">
+                <div id="routesBuilder" style="margin-top:10px;"></div>
+                <button class="btn-sub" onclick="addNewRouteInput()">＋增加詳細交通班次 (v12.1)</button>
+            </div>
+            <button id="mainBtn" class="btn-add full" onclick="addItinerary()">同步至雲端</button>
+        </div>
+    </div>
+
+    <div id="itineraryList" class="timeline"></div>
+
+    <div class="total-section">
+        <div><small style="color:#888;">今日支出</small><br><strong style="color:var(--danger); font-size:1.2rem;">¥<span id="dayTotal">0</span></strong></div>
+        <button onclick="openExpenseModal()" style="background:var(--s); padding:10px 20px; border-radius:8px; color:white;">記帳 💰</button>
+    </div>
 </div>
 
-<div id="itineraryList" class="timeline" style="padding:15px;"></div>
-
 <script>
-    // 2. 🔴 填寫你的 Firebase 資訊
     const firebaseConfig = {
-  apiKey: "AIzaSyB1XHUmaPeLZwUrab7Moo8OOEuwSbI5YfA",
-  authDomain: "my-trip-app-ed352.firebaseapp.com",
-  databaseURL: "https://my-trip-app-ed352-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "my-trip-app-ed352",
-  storageBucket: "my-trip-app-ed352.firebasestorage.app",
-  messagingSenderId: "240010472176",
-  appId: "1:240010472176:web:dcb3367130ce4daf597035",
-  measurementId: "G-D47YT5NVGZ"
-};
-
+        apiKey: "AIzaSyC2q8D1e-uGEFuSk1hRTZrawmT13shsTk8z9Q",
+        authDomain: "test1-e07c2.firebaseapp.com",
+        databaseURL: "https://test1-e07c2-default-rtdb.firebaseio.com",
+        projectId: "test1-e07c2",
+        storageBucket: "test1-e07c2.firebasestorage.app",
+        messagingSenderId: "820411535034",
+        appId: "1:820411535034:web:0d51387310f771576c0b03"
+    };
 
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    
-    // 設定這趟旅程的唯一 ID (你可以同旅伴約定一個 secret ID)
-    const tripId = "japan_trip_2026_001"; 
-    const tripRef = db.ref('trips/' + tripId);
+    const dbRef = firebase.database().ref('shared_trip');
 
     let currentDay = 1;
-    let localData = { days: { 1: { itinerary: [], expenses: [] } } };
+    let editingId = null;
+    let localDB = { days: { 1: { itinerary: [], expenses: [] } } };
 
-    // 3. 📡 核心：即時監聽雲端數據
-    tripRef.on('value', (snapshot) => {
+    dbRef.on('value', (snapshot) => {
         const data = snapshot.val();
-        if (data) {
-            localData = data;
-            render(); // 只要有人改，全體同時更新畫面
-        }
+        if (data) { localDB = data; render(); document.getElementById('syncStatus').innerText = "● 雲端已同步 (最新)"; }
+        else { saveToCloud(); }
     });
 
-    // 4. 更新 addItinerary 函數
+    function saveToCloud() {
+        document.getElementById('syncStatus').innerText = "○ 同步中...";
+        dbRef.set(localDB);
+    }
+
+    function addNewRouteInput(val = "") {
+        const div = document.createElement('div');
+        div.style.display = "flex"; div.style.marginBottom = "5px";
+        div.innerHTML = `<input type="text" class="r-input-box" value="${val}" placeholder="車次 (例: JR 山手線)" style="flex:1"> 
+                         <button onclick="this.parentElement.remove()" style="color:red; background:none; padding:0 5px;">×</button>`;
+        document.getElementById('routesBuilder').appendChild(div);
+    }
+
+    function addDay() {
+        const days = Object.keys(localDB.days || {}).map(Number);
+        const nextDay = days.length > 0 ? Math.max(...days) + 1 : 1;
+        if(!localDB.days) localDB.days = {};
+        localDB.days[nextDay] = { itinerary: [], expenses: [] };
+        currentDay = nextDay;
+        saveToCloud();
+    }
+
+    function addMinutes(t, m) {
+        if (!t) return "--:--";
+        let [h, min] = t.split(':').map(Number);
+        let d = new Date(); d.setHours(h); d.setMinutes(min + (parseInt(m) || 0));
+        return d.getHours().toString().padStart(2, '0') + ":" + d.getMinutes().toString().padStart(2, '0');
+    }
+
     function addItinerary() {
         const time = document.getElementById('pTime').value;
+        const stay = document.getElementById('pStay').value || 0;
         const desc = document.getElementById('pDesc').value;
-        // ... (獲取其他資料) ...
-
-        if (!localData.days[currentDay]) localData.days[currentDay] = { itinerary: [], expenses: [] };
+        const loc = document.getElementById('pLoc').value || desc;
+        const transitTime = document.getElementById('pTransitTime').value || 0;
+        const routes = [];
+        document.querySelectorAll('.r-input-box').forEach(el => { if(el.value) routes.push(el.value); });
         
-        localData.days[currentDay].itinerary.push({
-            id: Date.now(),
-            time, desc, // ... 
-            routes: [] // 這裡放入之前的交通方案邏輯
-        });
+        if (!time || !desc) return alert('請填寫完整資訊');
 
-        // 直接推送到雲端，不再用 LocalStorage
-        tripRef.set(localData); 
-        alert("旅伴的手機已同步更新！");
+        const newItem = {
+            id: editingId || Date.now(),
+            time, endTime: addMinutes(time, stay), stay, desc, loc, transitTime, routes,
+            imageUrl: `https://loremflickr.com/400/400/${encodeURIComponent(loc)}`
+        };
+
+        if(!localDB.days[currentDay]) localDB.days[currentDay] = { itinerary: [] };
+        if (editingId) {
+            const idx = localDB.days[currentDay].itinerary.findIndex(i => i.id === editingId);
+            localDB.days[currentDay].itinerary[idx] = newItem;
+            editingId = null;
+            document.getElementById('mainBtn').innerText = "同步至雲端";
+        } else {
+            localDB.days[currentDay].itinerary.push(newItem);
+        }
+        localDB.days[currentDay].itinerary.sort((a, b) => a.time.localeCompare(b.time));
+        saveToCloud();
+        ['pTime', 'pStay', 'pDesc', 'pLoc', 'pTransitTime'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('routesBuilder').innerHTML = '';
     }
 
     function render() {
-        // (沿用之前的 render 邏輯，渲染出行程表)
+        const tabs = document.getElementById('dayTabs');
+        const sortedDays = Object.keys(localDB.days || {}).sort((a,b)=>a-b);
+        tabs.innerHTML = sortedDays.map(d => `<div class="day-tab ${d == currentDay ? 'active' : ''}" onclick="currentDay=${d};render();">Day ${d}</div>`).join('');
+
+        const list = document.getElementById('itineraryList');
+        let html = '';
+        const dayData = localDB.days[currentDay] || { itinerary: [] };
+        const items = dayData.itinerary || [];
+        
+        items.forEach((item, index) => {
+            html += `
+            <div class="item">
+                <div class="item-img" style="background-image: url('${item.imageUrl}')"></div>
+                <div class="item-content">
+                    <button class="edit-btn" onclick="editItem(${item.id})">✏️</button>
+                    <button class="del-btn" onclick="deleteItem(${item.id})">×</button>
+                    <div style="color:var(--p); font-weight:bold;">${item.time} - ${item.endTime}</div>
+                    <div style="font-weight:bold; margin:5px 0;">${item.desc}</div>
+                    <div style="font-size:11px; color:#888;">📍 ${item.loc}</div>
+                </div>
+            </div>`;
+            
+            if (index < items.length - 1) {
+                const next = items[index+1];
+                // 這裡就是你要的兩種導航
+                const gpsNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(next.loc)}&travelmode=transit`;
+                const stepNavUrl = `https://www.google.com/maps/dir/${encodeURIComponent(item.loc)}/${encodeURIComponent(next.loc)}/data=!4m2!4m1!3e3`;
+
+                html += `
+                <div class="transit-area">
+                    <div class="transit-info">
+                        <div class="transit-badge">🚌 交通：${item.transitTime} 分鐘</div>
+                        <div style="color:#007bff; font-size:11px; margin:3px 0;">${item.routes && item.routes.length > 0 ? '🚀 ' + item.routes.join(' → ') : ''}</div>
+                        <div class="nav-btn-group">
+                            <a href="${stepNavUrl}" target="_blank" class="btn-nav-step">站對站導航</a>
+                            <a href="${gpsNavUrl}" target="_blank" class="btn-nav-gps">📍 現在位置導航</a>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        });
+        list.innerHTML = html || '<p style="text-align:center; color:#999; padding-top:20px;">未有行程</p>';
+        document.getElementById('dayTotal').innerText = ((dayData.expenses || []).reduce((s, e) => s + e.amount, 0)).toLocaleString();
+    }
+
+    function editItem(id) {
+        editingId = id;
+        const item = localDB.days[currentDay].itinerary.find(i => i.id === id);
+        document.getElementById('pTime').value = item.time;
+        document.getElementById('pStay').value = item.stay;
+        document.getElementById('pDesc').value = item.desc;
+        document.getElementById('pLoc').value = item.loc;
+        document.getElementById('pTransitTime').value = item.transitTime;
+        document.getElementById('routesBuilder').innerHTML = '';
+        (item.routes || []).forEach(r => addNewRouteInput(r));
+        document.getElementById('mainBtn').innerText = "確認修改並同步";
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function deleteItem(id) { if(confirm('刪除？')) { localDB.days[currentDay].itinerary = localDB.days[currentDay].itinerary.filter(i => i.id !== id); saveToCloud(); } }
+    function openExpenseModal() {
+        const a = prompt("支出金額 (¥):");
+        if (a && !isNaN(a)) {
+            if(!localDB.days[currentDay].expenses) localDB.days[currentDay].expenses = [];
+            localDB.days[currentDay].expenses.push({ amount: parseFloat(a) });
+            saveToCloud();
+        }
     }
 </script>
 </body>
