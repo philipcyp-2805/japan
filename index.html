@@ -42,6 +42,7 @@
         .duration-tag { font-size: 10px; background: #eef2f7; color: #555; padding: 2px 5px; border-radius: 4px; margin-left: 5px; }
         
         .btn-search { display: inline-flex; align-items: center; gap: 4px; color: var(--t); text-decoration: none; font-size: 0.75rem; margin-top: 8px; font-weight: bold; border: 1px solid var(--t); padding: 4px 8px; border-radius: 6px; background: #fff3e0; }
+        .btn-act-link { color: var(--nav); font-size: 11px; font-weight: bold; border: 1px solid var(--nav); padding: 3px 8px; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; }
 
         .transit-area { margin: -5px 0 20px 25px; padding-left: 15px; border-left: 2px dashed #ddd; }
         .transit-info { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 10px; font-size: 13px; }
@@ -55,6 +56,7 @@
         .total-section { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
         .del-btn { position: absolute; top: 10px; right: 10px; color: #ccc; cursor: pointer; background:none; border:none; font-size: 18px; }
         .edit-btn { position: absolute; top: 10px; right: 35px; color: var(--p); cursor: pointer; background:none; border:none; font-size: 16px; }
+        .link-input-group { display: flex; margin-bottom: 5px; gap: 5px; }
     </style>
 </head>
 <body>
@@ -75,15 +77,22 @@
             <input type="text" id="pDesc" class="full" placeholder="活動內容 (例: 淺草寺)">
             <input type="text" id="pLoc" class="full" placeholder="目的地關鍵字 (導航及搜尋用)">
             
+            <div class="full">
+                <label>🔗 活動相關網址 (例如：Klook門票、官網)</label>
+                <div id="activityLinksBuilder"></div>
+                <button class="btn-sub" onclick="addActivityLinkInput()">＋增加活動網址</button>
+            </div>
+
             <div class="full" style="border-top:1px solid #eee; margin-top:10px; padding-top:10px;">
                 <label>🚍 交通設定 (前往下一站所需時間)</label>
                 <input type="number" id="pTransitTime" placeholder="預計路程時間 (分鐘)">
                 
-                <label style="margin-top:8px;">🔗 交通網址備註 (選填，可放入乘換案內、車票連結)</label>
-                <input type="url" id="pTransitLink" placeholder="https://example.com/route-details">
-
                 <div id="routesBuilder" style="margin-top:10px;"></div>
-                <button class="btn-sub" onclick="addNewRouteInput()">＋增加詳細交通班次 (v12.1 功能)</button>
+                <button class="btn-sub" onclick="addNewRouteInput()">＋增加詳細交通班次 (v12.1)</button>
+
+                <label style="margin-top:15px;">🔗 交通網址備註 (例如：乘換案內、車票連結)</label>
+                <div id="transitLinksBuilder"></div>
+                <button class="btn-sub" onclick="addTransitLinkInput()">＋增加交通網址</button>
             </div>
 
             <button id="mainBtn" class="btn-add full" onclick="addItinerary()">同步至雲端</button>
@@ -137,12 +146,23 @@
     // --- 3. 介面與功能邏輯 ---
     function addNewRouteInput(val = "") {
         const div = document.createElement('div');
-        div.style.display = "flex";
-        div.style.marginBottom = "5px";
-        div.innerHTML = `<input type="text" class="r-input-box" value="${val}" placeholder="車次 (例: JR 山手線)" style="flex:1"> 
-                         <button onclick="this.parentElement.remove()" style="color:red; background:none; padding:0 5px; font-weight:bold;">×</button>`;
+        div.className = "link-input-group";
+        div.innerHTML = `<input type="text" class="r-input-box" value="${val}" placeholder="車次 (例: JR 山手線)" style="flex:1; padding:8px;"> 
+                         <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; padding:0 5px; font-weight:bold;">×</button>`;
         document.getElementById('routesBuilder').appendChild(div);
     }
+
+    // 共用的動態網址輸入產生器
+    function addLinkInput(containerId, val = "", placeholderText) {
+        const div = document.createElement('div');
+        div.className = "link-input-group";
+        div.innerHTML = `<input type="url" class="l-input-box" value="${val}" placeholder="${placeholderText}" style="flex:1; padding:8px;">
+                         <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; padding:0 5px; font-weight:bold;">×</button>`;
+        document.getElementById(containerId).appendChild(div);
+    }
+    
+    function addActivityLinkInput(val = "") { addLinkInput('activityLinksBuilder', val, "https://活動網址..."); }
+    function addTransitLinkInput(val = "") { addLinkInput('transitLinksBuilder', val, "https://交通網址..."); }
 
     function addDay() {
         const days = Object.keys(localDB.days || {}).map(Number);
@@ -166,18 +186,24 @@
         const desc = document.getElementById('pDesc').value;
         const loc = document.getElementById('pLoc').value || desc;
         const transitTime = document.getElementById('pTransitTime').value || 0;
-        const transitLink = document.getElementById('pTransitLink').value.trim(); // 讀取網址
         
         if (!time || !desc) return alert('請輸入時間與內容');
 
+        // 收集所有動態輸入框的值
         const routes = [];
-        document.querySelectorAll('.r-input-box').forEach(el => { if(el.value) routes.push(el.value); });
+        document.querySelectorAll('.r-input-box').forEach(el => { if(el.value.trim()) routes.push(el.value.trim()); });
+
+        const activityLinks = [];
+        document.getElementById('activityLinksBuilder').querySelectorAll('.l-input-box').forEach(el => { if(el.value.trim()) activityLinks.push(el.value.trim()); });
+
+        const transitLinks = [];
+        document.getElementById('transitLinksBuilder').querySelectorAll('.l-input-box').forEach(el => { if(el.value.trim()) transitLinks.push(el.value.trim()); });
 
         const newItem = {
             id: editingId || Date.now(),
             time, 
             endTime: addMinutes(time, stay), 
-            stay, desc, loc, transitTime, routes, transitLink, // 寫入資料庫
+            stay, desc, loc, transitTime, routes, activityLinks, transitLinks,
             imageUrl: `https://loremflickr.com/400/400/${encodeURIComponent(loc)}`
         };
 
@@ -186,7 +212,8 @@
 
         if (editingId) {
             const idx = localDB.days[currentDay].itinerary.findIndex(i => i.id === editingId);
-            localDB.days[currentDay].itinerary[idx] = newItem;
+            // 替換舊資料，但保留可能存在的舊 transitLink 以防萬一（雖然已被新欄位取代）
+            localDB.days[currentDay].itinerary[idx] = { ...localDB.days[currentDay].itinerary[idx], ...newItem, transitLink: null };
             editingId = null;
             document.getElementById('mainBtn').innerText = "同步至雲端";
             document.getElementById('mainBtn').classList.remove('btn-edit-mode');
@@ -197,8 +224,11 @@
         localDB.days[currentDay].itinerary.sort((a, b) => a.time.localeCompare(b.time));
         saveToCloud();
 
-        ['pTime', 'pStay', 'pDesc', 'pLoc', 'pTransitTime', 'pTransitLink'].forEach(id => document.getElementById(id).value = '');
+        // 清空輸入欄位
+        ['pTime', 'pStay', 'pDesc', 'pLoc', 'pTransitTime'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('routesBuilder').innerHTML = '';
+        document.getElementById('activityLinksBuilder').innerHTML = '';
+        document.getElementById('transitLinksBuilder').innerHTML = '';
     }
 
     function editItem(id) {
@@ -209,10 +239,20 @@
         document.getElementById('pDesc').value = item.desc;
         document.getElementById('pLoc').value = item.loc;
         document.getElementById('pTransitTime').value = item.transitTime;
-        document.getElementById('pTransitLink').value = item.transitLink || ''; // 編輯填回網址
         
+        // 載入班次
         document.getElementById('routesBuilder').innerHTML = '';
         (item.routes || []).forEach(r => addNewRouteInput(r));
+
+        // 載入活動網址
+        document.getElementById('activityLinksBuilder').innerHTML = '';
+        (item.activityLinks || []).forEach(l => addActivityLinkInput(l));
+
+        // 載入交通網址 (兼容舊版單一 transitLink)
+        document.getElementById('transitLinksBuilder').innerHTML = '';
+        let tLinks = item.transitLinks || [];
+        if (item.transitLink && tLinks.length === 0) tLinks = [item.transitLink];
+        tLinks.forEach(l => addTransitLinkInput(l));
 
         document.getElementById('mainBtn').innerText = "確認修改並同步";
         document.getElementById('mainBtn').classList.add('btn-edit-mode');
@@ -242,6 +282,16 @@
         items.forEach((item, index) => {
             const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(item.loc + " " + item.desc + " 攻略 必吃")}`;
             
+            // 處理多個活動網址
+            let actLinksHtml = '';
+            if (item.activityLinks && item.activityLinks.length > 0) {
+                actLinksHtml = `<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">` + 
+                    item.activityLinks.map((link, idx) => {
+                        let url = link.startsWith('http') ? link : 'https://' + link;
+                        return `<a href="${url}" target="_blank" class="btn-act-link">🔗 活動網址 ${idx + 1}</a>`;
+                    }).join('') + `</div>`;
+            }
+
             html += `
             <div class="item">
                 <div class="item-img" style="background-image: url('${item.imageUrl}')"></div>
@@ -251,8 +301,11 @@
                     <div class="time-range">${item.time} - ${item.endTime} <span class="duration-tag">停留 ${item.stay}m</span></div>
                     <div style="font-weight:bold; margin-top:5px; font-size:1.1rem;">${item.desc}</div>
                     <div style="font-size:12px; color:#666; margin-top:2px;">📍 ${item.loc}</div>
-                    <a href="${googleSearch}" target="_blank" class="btn-search">🔍 搜尋活動攻略</a>
-                </div>
+                    
+                    <div style="margin-top:8px;">
+                        <a href="${googleSearch}" target="_blank" class="btn-search">🔍 搜尋活動攻略</a>
+                    </div>
+                    ${actLinksHtml} </div>
             </div>`;
             
             if (index < items.length - 1) {
@@ -260,18 +313,19 @@
                 const transitMins = parseInt(item.transitTime) || 0;
                 const arrivalTime = addMinutes(item.endTime, transitMins);
                 
-                // 完美修正：Google 地圖導航連結語法
                 const gpsNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(next.loc)}&travelmode=transit`;
                 const stepNavUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(item.loc)}&destination=${encodeURIComponent(next.loc)}&travelmode=transit`;
 
-                // 處理自訂備註網址
-                let customLinkHtml = '';
-                if (item.transitLink) {
-                    let finalUrl = item.transitLink;
-                    if (!/^https?:\/\//i.test(finalUrl)) {
-                        finalUrl = 'https://' + finalUrl;
-                    }
-                    customLinkHtml = `<a href="${finalUrl}" target="_blank" class="btn-transit-link">🔗 打開交通備註網址</a>`;
+                // 處理多個交通網址 (兼容舊版資料)
+                let tLinks = item.transitLinks || [];
+                if (item.transitLink && tLinks.length === 0) tLinks = [item.transitLink];
+                
+                let transLinksHtml = '';
+                if (tLinks.length > 0) {
+                    transLinksHtml = tLinks.map((link, idx) => {
+                        let url = link.startsWith('http') ? link : 'https://' + link;
+                        return `<a href="${url}" target="_blank" class="btn-transit-link">🔗 交通網址 ${idx + 1}</a>`;
+                    }).join('');
                 }
 
                 html += `
@@ -285,7 +339,7 @@
                         </div>
                         
                         <div class="nav-btn-group">
-                            ${customLinkHtml} <a href="${stepNavUrl}" target="_blank" class="btn-nav-step">站對站導航</a>
+                            ${transLinksHtml} <a href="${stepNavUrl}" target="_blank" class="btn-nav-step">站對站導航</a>
                             <a href="${gpsNavUrl}" target="_blank" class="btn-nav-gps">📍 現在位置導航</a>
                         </div>
                     </div>
