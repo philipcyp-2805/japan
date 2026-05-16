@@ -3,41 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Trip Master v15 - GPS Navigation</title>
+    <title>Trip Master Ultimate - Cloud Sync</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <style>
         :root { --p: #4a90e2; --s: #50e3c2; --t: #f39c12; --bg: #f0f2f5; --danger: #ff5a5f; --google: #4285f4; --nav: #34a853; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 15px; padding-bottom: 120px; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 15px; padding-bottom: 120px; color: #333; }
         .container { max-width: 600px; margin: 0 auto; }
+        
         .sync-banner { font-size: 11px; text-align: center; padding: 5px; background: #e8f5e9; color: #2e7d32; border-radius: 10px; margin-bottom: 10px; font-weight: bold; }
+
         .day-nav-wrapper { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; }
         .day-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; flex: 1; scrollbar-width: none; }
         .day-tabs::-webkit-scrollbar { display: none; }
-        .day-tab { padding: 8px 16px; background: white; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; white-space: nowrap; font-size: 14px; }
-        .day-tab.active { background: var(--p); color: white; border-color: var(--p); }
-        .btn-add-day { width: 35px; height: 35px; border-radius: 50%; border: none; background: white; color: var(--p); font-size: 20px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .day-tab { padding: 8px 16px; background: white; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; white-space: nowrap; font-size: 14px; transition: 0.2s; }
+        .day-tab.active { background: var(--p); color: white; border-color: var(--p); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-add-day { width: 35px; height: 35px; border-radius: 50%; border: none; background: white; color: var(--p); font-size: 20px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex-shrink: 0; }
+
         .card { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
         .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .full { grid-column: span 2; }
         input { padding: 12px; border: 1px solid #eee; border-radius: 8px; font-size: 14px; background: #fafafa; width: 100%; box-sizing: border-box; }
         label { font-size: 11px; color: #666; font-weight: bold; margin-bottom: 2px; display: block; }
+        
         button { padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .btn-add { background: var(--p); color: white; margin-top: 10px; width: 100%; }
+        .btn-edit-mode { background: var(--t); }
         .btn-sub { background: #f8f9fa; color: #666; font-size: 11px; margin-top: 5px; border: 1px dashed #ccc; width: 100%; }
+
         .timeline { position: relative; padding-left: 15px; border-left: 2px solid #e0e0e0; margin-left: 10px; }
         .item { background: white; border-radius: 12px; margin-bottom: 15px; position: relative; box-shadow: 0 3px 6px rgba(0,0,0,0.05); display: flex; overflow: hidden; }
+        .item::before { content: ''; position: absolute; left: -22px; top: 20px; width: 12px; height: 12px; background: var(--p); border-radius: 50%; border: 3px solid white; z-index: 1; }
         .item-img { width: 100px; background-size: cover; background-position: center; background-color: #eee; flex-shrink: 0; }
         .item-content { padding: 15px; flex: 1; position: relative; }
+        .time-range { color: var(--p); font-weight: bold; font-size: 0.9rem; }
+        .duration-tag { font-size: 10px; background: #eef2f7; color: #555; padding: 2px 5px; border-radius: 4px; margin-left: 5px; }
+        
+        .btn-search { display: inline-flex; align-items: center; gap: 4px; color: var(--t); text-decoration: none; font-size: 0.75rem; margin-top: 8px; font-weight: bold; border: 1px solid var(--t); padding: 4px 8px; border-radius: 6px; background: #fff3e0; }
+
         .transit-area { margin: -5px 0 20px 25px; padding-left: 15px; border-left: 2px dashed #ddd; }
         .transit-info { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 10px; font-size: 13px; }
         .transit-badge { display: inline-block; background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; margin-bottom: 5px; }
+        
         .nav-btn-group { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-        .btn-nav-gps { background: var(--nav); color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 11px; }
-        .btn-nav-step { border: 1px solid var(--p); color: var(--p); padding: 5px 11px; border-radius: 6px; text-decoration: none; font-size: 11px; }
-        .total-section { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+        .btn-nav-gps { background: var(--nav); color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: bold; }
+        .btn-nav-step { border: 1px solid var(--p); color: var(--p); background: white; padding: 5px 11px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: bold; }
+
+        .total-section { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
         .del-btn { position: absolute; top: 10px; right: 10px; color: #ccc; cursor: pointer; background:none; border:none; font-size: 18px; }
         .edit-btn { position: absolute; top: 10px; right: 35px; color: var(--p); cursor: pointer; background:none; border:none; font-size: 16px; }
     </style>
@@ -46,7 +60,7 @@
 
 <div class="container">
     <div class="sync-banner" id="syncStatus">● 雲端連線中...</div>
-    <h2 style="text-align:center;">✈️ Trip Master Cloud v15</h2>
+    <h2 style="text-align:center;">✈️ Trip Master Cloud Ultimate</h2>
 
     <div class="day-nav-wrapper">
         <div id="dayTabs" class="day-tabs"></div>
@@ -56,16 +70,17 @@
     <div class="card">
         <div class="input-grid">
             <div class="field"><label>活動開始</label><input type="time" id="pTime"></div>
-            <div class="field"><label>停留 (分鐘)</label><input type="number" id="pStay"></div>
+            <div class="field"><label>停留 (分鐘)</label><input type="number" id="pStay" placeholder="分鐘"></div>
             <input type="text" id="pDesc" class="full" placeholder="活動內容 (例: 淺草寺)">
-            <input type="text" id="pLoc" class="full" placeholder="目的地 (地址或地名)">
+            <input type="text" id="pLoc" class="full" placeholder="目的地關鍵字 (導航及搜尋用)">
             
             <div class="full" style="border-top:1px solid #eee; margin-top:10px; padding-top:10px;">
-                <label>🚍 交通設定 (前往下站時間)</label>
-                <input type="number" id="pTransitTime" placeholder="路程時間 (分鐘)">
+                <label>🚍 交通設定 (前往下一站所需時間)</label>
+                <input type="number" id="pTransitTime" placeholder="預計路程時間 (分鐘)">
                 <div id="routesBuilder" style="margin-top:10px;"></div>
-                <button class="btn-sub" onclick="addNewRouteInput()">＋增加詳細交通班次 (v12.1)</button>
+                <button class="btn-sub" onclick="addNewRouteInput()">＋增加詳細交通班次 (v12.1 功能)</button>
             </div>
+
             <button id="mainBtn" class="btn-add full" onclick="addItinerary()">同步至雲端</button>
         </div>
     </div>
@@ -73,12 +88,13 @@
     <div id="itineraryList" class="timeline"></div>
 
     <div class="total-section">
-        <div><small style="color:#888;">今日支出</small><br><strong style="color:var(--danger); font-size:1.2rem;">¥<span id="dayTotal">0</span></strong></div>
-        <button onclick="openExpenseModal()" style="background:var(--s); padding:10px 20px; border-radius:8px; color:white;">記帳 💰</button>
+        <div><small style="color:#888;">今日總預算</small><br><strong style="color:var(--danger); font-size:1.3rem;">¥<span id="dayTotal">0</span></strong></div>
+        <button onclick="openExpenseModal()" style="background:var(--s); padding: 10px 20px; border-radius:8px; color:white;">記帳 💰</button>
     </div>
 </div>
 
 <script>
+    // --- 1. Firebase 正確配置 ---
     const firebaseConfig = {
         apiKey: "AIzaSyC2q8D1e-uGEFuSk1hRTZrawmT13shsTk8z9Q",
         authDomain: "test1-e07c2.firebaseapp.com",
@@ -96,10 +112,16 @@
     let editingId = null;
     let localDB = { days: { 1: { itinerary: [], expenses: [] } } };
 
+    // --- 2. 雲端同步監聽 ---
     dbRef.on('value', (snapshot) => {
         const data = snapshot.val();
-        if (data) { localDB = data; render(); document.getElementById('syncStatus').innerText = "● 雲端已同步 (最新)"; }
-        else { saveToCloud(); }
+        if (data) {
+            localDB = data;
+            render();
+            document.getElementById('syncStatus').innerText = "● 雲端已同步 (最新)";
+        } else {
+            saveToCloud();
+        }
     });
 
     function saveToCloud() {
@@ -107,11 +129,13 @@
         dbRef.set(localDB);
     }
 
+    // --- 3. 介面與功能邏輯 ---
     function addNewRouteInput(val = "") {
         const div = document.createElement('div');
-        div.style.display = "flex"; div.style.marginBottom = "5px";
+        div.style.display = "flex";
+        div.style.marginBottom = "5px";
         div.innerHTML = `<input type="text" class="r-input-box" value="${val}" placeholder="車次 (例: JR 山手線)" style="flex:1"> 
-                         <button onclick="this.parentElement.remove()" style="color:red; background:none; padding:0 5px;">×</button>`;
+                         <button onclick="this.parentElement.remove()" style="color:red; background:none; padding:0 5px; font-weight:bold;">×</button>`;
         document.getElementById('routesBuilder').appendChild(div);
     }
 
@@ -137,76 +161,38 @@
         const desc = document.getElementById('pDesc').value;
         const loc = document.getElementById('pLoc').value || desc;
         const transitTime = document.getElementById('pTransitTime').value || 0;
+        
+        if (!time || !desc) return alert('請輸入時間與內容');
+
         const routes = [];
         document.querySelectorAll('.r-input-box').forEach(el => { if(el.value) routes.push(el.value); });
-        
-        if (!time || !desc) return alert('請填寫完整資訊');
 
         const newItem = {
             id: editingId || Date.now(),
-            time, endTime: addMinutes(time, stay), stay, desc, loc, transitTime, routes,
+            time, 
+            endTime: addMinutes(time, stay), 
+            stay, desc, loc, transitTime, routes,
             imageUrl: `https://loremflickr.com/400/400/${encodeURIComponent(loc)}`
         };
 
-        if(!localDB.days[currentDay]) localDB.days[currentDay] = { itinerary: [] };
+        if(!localDB.days[currentDay]) localDB.days[currentDay] = { itinerary: [], expenses: [] };
+        if(!localDB.days[currentDay].itinerary) localDB.days[currentDay].itinerary = [];
+
         if (editingId) {
             const idx = localDB.days[currentDay].itinerary.findIndex(i => i.id === editingId);
             localDB.days[currentDay].itinerary[idx] = newItem;
             editingId = null;
             document.getElementById('mainBtn').innerText = "同步至雲端";
+            document.getElementById('mainBtn').classList.remove('btn-edit-mode');
         } else {
             localDB.days[currentDay].itinerary.push(newItem);
         }
+
         localDB.days[currentDay].itinerary.sort((a, b) => a.time.localeCompare(b.time));
         saveToCloud();
+
         ['pTime', 'pStay', 'pDesc', 'pLoc', 'pTransitTime'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('routesBuilder').innerHTML = '';
-    }
-
-    function render() {
-        const tabs = document.getElementById('dayTabs');
-        const sortedDays = Object.keys(localDB.days || {}).sort((a,b)=>a-b);
-        tabs.innerHTML = sortedDays.map(d => `<div class="day-tab ${d == currentDay ? 'active' : ''}" onclick="currentDay=${d};render();">Day ${d}</div>`).join('');
-
-        const list = document.getElementById('itineraryList');
-        let html = '';
-        const dayData = localDB.days[currentDay] || { itinerary: [] };
-        const items = dayData.itinerary || [];
-        
-        items.forEach((item, index) => {
-            html += `
-            <div class="item">
-                <div class="item-img" style="background-image: url('${item.imageUrl}')"></div>
-                <div class="item-content">
-                    <button class="edit-btn" onclick="editItem(${item.id})">✏️</button>
-                    <button class="del-btn" onclick="deleteItem(${item.id})">×</button>
-                    <div style="color:var(--p); font-weight:bold;">${item.time} - ${item.endTime}</div>
-                    <div style="font-weight:bold; margin:5px 0;">${item.desc}</div>
-                    <div style="font-size:11px; color:#888;">📍 ${item.loc}</div>
-                </div>
-            </div>`;
-            
-            if (index < items.length - 1) {
-                const next = items[index+1];
-                // 這裡就是你要的兩種導航
-                const gpsNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(next.loc)}&travelmode=transit`;
-                const stepNavUrl = `https://www.google.com/maps/dir/${encodeURIComponent(item.loc)}/${encodeURIComponent(next.loc)}/data=!4m2!4m1!3e3`;
-
-                html += `
-                <div class="transit-area">
-                    <div class="transit-info">
-                        <div class="transit-badge">🚌 交通：${item.transitTime} 分鐘</div>
-                        <div style="color:#007bff; font-size:11px; margin:3px 0;">${item.routes && item.routes.length > 0 ? '🚀 ' + item.routes.join(' → ') : ''}</div>
-                        <div class="nav-btn-group">
-                            <a href="${stepNavUrl}" target="_blank" class="btn-nav-step">站對站導航</a>
-                            <a href="${gpsNavUrl}" target="_blank" class="btn-nav-gps">📍 現在位置導航</a>
-                        </div>
-                    </div>
-                </div>`;
-            }
-        });
-        list.innerHTML = html || '<p style="text-align:center; color:#999; padding-top:20px;">未有行程</p>';
-        document.getElementById('dayTotal').innerText = ((dayData.expenses || []).reduce((s, e) => s + e.amount, 0)).toLocaleString();
     }
 
     function editItem(id) {
@@ -217,15 +203,85 @@
         document.getElementById('pDesc').value = item.desc;
         document.getElementById('pLoc').value = item.loc;
         document.getElementById('pTransitTime').value = item.transitTime;
+        
         document.getElementById('routesBuilder').innerHTML = '';
         (item.routes || []).forEach(r => addNewRouteInput(r));
+
         document.getElementById('mainBtn').innerText = "確認修改並同步";
+        document.getElementById('mainBtn').classList.add('btn-edit-mode');
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
-    function deleteItem(id) { if(confirm('刪除？')) { localDB.days[currentDay].itinerary = localDB.days[currentDay].itinerary.filter(i => i.id !== id); saveToCloud(); } }
+    function deleteItem(id) {
+        if(confirm('刪除行程？')) {
+            localDB.days[currentDay].itinerary = localDB.days[currentDay].itinerary.filter(i => i.id !== id);
+            saveToCloud();
+        }
+    }
+
+    // --- 4. 渲染核心（含正確的地圖及搜尋連結） ---
+    function render() {
+        const tabs = document.getElementById('dayTabs');
+        const sortedDays = Object.keys(localDB.days || {}).sort((a,b)=>a-b);
+        tabs.innerHTML = sortedDays.map(d => `
+            <div class="day-tab ${d == currentDay ? 'active' : ''}" onclick="currentDay=${d};render();">Day ${d}</div>
+        `).join('');
+
+        const list = document.getElementById('itineraryList');
+        let html = '';
+        const dayData = localDB.days[currentDay] || { itinerary: [], expenses: [] };
+        const items = dayData.itinerary || [];
+        
+        items.forEach((item, index) => {
+            // 正確動態轉換搜尋代碼
+            const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(item.loc + " " + item.desc + " 攻略 必吃")}`;
+            
+            html += `
+            <div class="item">
+                <div class="item-img" style="background-image: url('${item.imageUrl}')"></div>
+                <div class="item-content">
+                    <button class="edit-btn" onclick="editItem(${item.id})">✏️</button>
+                    <button class="del-btn" onclick="deleteItem(${item.id})">×</button>
+                    <div class="time-range">${item.time} - ${item.endTime} <span class="duration-tag">停留 ${item.stay}m</span></div>
+                    <div style="font-weight:bold; margin-top:5px; font-size:1.1rem;">${item.desc}</div>
+                    <div style="font-size:12px; color:#666; margin-top:2px;">📍 ${item.loc}</div>
+                    <a href="${googleSearch}" target="_blank" class="btn-search">🔍 搜尋活動攻略</a>
+                </div>
+            </div>`;
+            
+            if (index < items.length - 1) {
+                const next = items[index+1];
+                const transitMins = parseInt(item.transitTime) || 0;
+                const arrivalTime = addMinutes(item.endTime, transitMins);
+                
+                // 修正後完美支援的雙重 Google 地圖連結
+                const gpsNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(next.loc)}&travelmode=transit`;
+                const stepNavUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(item.loc)}&destination=${encodeURIComponent(next.loc)}&travelmode=transit`;
+
+                html += `
+                <div class="transit-area">
+                    <div class="transit-info">
+                        <div class="transit-badge">🚌 交通：${transitMins} 分鐘</div>
+                        <div>從 ${item.endTime} 出發，預計 <b>${arrivalTime}</b> 抵達</div>
+                        <div style="color:#2196f3; font-size:11px; margin-top:4px; font-weight:bold;">
+                            ${item.routes && item.routes.length > 0 ? '🚀 班次配置：' + item.routes.join(' → ') : ''}
+                        </div>
+                        <div class="nav-btn-group">
+                            <a href="${stepNavUrl}" target="_blank" class="btn-nav-step">站對站導航</a>
+                            <a href="${gpsNavUrl}" target="_blank" class="btn-nav-gps">📍 現在位置導航</a>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        });
+        list.innerHTML = html || '<p style="text-align:center; color:#999; padding-top:20px;">這一天還沒有行程喔！</p>';
+        
+        const total = (dayData.expenses || []).reduce((s, e) => s + e.amount, 0);
+        document.getElementById('dayTotal').innerText = total.toLocaleString();
+    }
+
     function openExpenseModal() {
-        const a = prompt("支出金額 (¥):");
+        const a = prompt("輸入支出的金額 (日圓):");
         if (a && !isNaN(a)) {
             if(!localDB.days[currentDay].expenses) localDB.days[currentDay].expenses = [];
             localDB.days[currentDay].expenses.push({ amount: parseFloat(a) });
