@@ -47,9 +47,10 @@
         .transit-info { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 10px; font-size: 13px; }
         .transit-badge { display: inline-block; background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; margin-bottom: 5px; }
         
-        .nav-btn-group { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+        .nav-btn-group { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
         .btn-nav-gps { background: var(--nav); color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: bold; }
         .btn-nav-step { border: 1px solid var(--p); color: var(--p); background: white; padding: 5px 11px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: bold; }
+        .btn-transit-link { background: var(--t); color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 3px; }
 
         .total-section { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
         .del-btn { position: absolute; top: 10px; right: 10px; color: #ccc; cursor: pointer; background:none; border:none; font-size: 18px; }
@@ -77,6 +78,10 @@
             <div class="full" style="border-top:1px solid #eee; margin-top:10px; padding-top:10px;">
                 <label>🚍 交通設定 (前往下一站所需時間)</label>
                 <input type="number" id="pTransitTime" placeholder="預計路程時間 (分鐘)">
+                
+                <label style="margin-top:8px;">🔗 交通網址備註 (選填，可放入乘換案內、車票連結)</label>
+                <input type="url" id="pTransitLink" placeholder="https://example.com/route-details">
+
                 <div id="routesBuilder" style="margin-top:10px;"></div>
                 <button class="btn-sub" onclick="addNewRouteInput()">＋增加詳細交通班次 (v12.1 功能)</button>
             </div>
@@ -94,7 +99,7 @@
 </div>
 
 <script>
-    // --- 1. Firebase 正確配置 ---
+    // --- 1. Firebase 配置 ---
     const firebaseConfig = {
         apiKey: "AIzaSyC2q8D1e-uGEFuSk1hRTZrawmT13shsTk8z9Q",
         authDomain: "test1-e07c2.firebaseapp.com",
@@ -161,6 +166,7 @@
         const desc = document.getElementById('pDesc').value;
         const loc = document.getElementById('pLoc').value || desc;
         const transitTime = document.getElementById('pTransitTime').value || 0;
+        const transitLink = document.getElementById('pTransitLink').value.trim(); // 讀取網址
         
         if (!time || !desc) return alert('請輸入時間與內容');
 
@@ -171,7 +177,7 @@
             id: editingId || Date.now(),
             time, 
             endTime: addMinutes(time, stay), 
-            stay, desc, loc, transitTime, routes,
+            stay, desc, loc, transitTime, routes, transitLink, // 寫入資料庫
             imageUrl: `https://loremflickr.com/400/400/${encodeURIComponent(loc)}`
         };
 
@@ -191,7 +197,7 @@
         localDB.days[currentDay].itinerary.sort((a, b) => a.time.localeCompare(b.time));
         saveToCloud();
 
-        ['pTime', 'pStay', 'pDesc', 'pLoc', 'pTransitTime'].forEach(id => document.getElementById(id).value = '');
+        ['pTime', 'pStay', 'pDesc', 'pLoc', 'pTransitTime', 'pTransitLink'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('routesBuilder').innerHTML = '';
     }
 
@@ -203,6 +209,7 @@
         document.getElementById('pDesc').value = item.desc;
         document.getElementById('pLoc').value = item.loc;
         document.getElementById('pTransitTime').value = item.transitTime;
+        document.getElementById('pTransitLink').value = item.transitLink || ''; // 編輯填回網址
         
         document.getElementById('routesBuilder').innerHTML = '';
         (item.routes || []).forEach(r => addNewRouteInput(r));
@@ -219,7 +226,7 @@
         }
     }
 
-    // --- 4. 渲染核心（含正確的地圖及搜尋連結） ---
+    // --- 4. 渲染核心 ---
     function render() {
         const tabs = document.getElementById('dayTabs');
         const sortedDays = Object.keys(localDB.days || {}).sort((a,b)=>a-b);
@@ -233,7 +240,6 @@
         const items = dayData.itinerary || [];
         
         items.forEach((item, index) => {
-            // 正確動態轉換搜尋代碼
             const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(item.loc + " " + item.desc + " 攻略 必吃")}`;
             
             html += `
@@ -254,20 +260,32 @@
                 const transitMins = parseInt(item.transitTime) || 0;
                 const arrivalTime = addMinutes(item.endTime, transitMins);
                 
-                // 修正後完美支援的雙重 Google 地圖連結
+                // 完美修正：Google 地圖導航連結語法
                 const gpsNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(next.loc)}&travelmode=transit`;
                 const stepNavUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(item.loc)}&destination=${encodeURIComponent(next.loc)}&travelmode=transit`;
+
+                // 處理自訂備註網址
+                let customLinkHtml = '';
+                if (item.transitLink) {
+                    let finalUrl = item.transitLink;
+                    if (!/^https?:\/\//i.test(finalUrl)) {
+                        finalUrl = 'https://' + finalUrl;
+                    }
+                    customLinkHtml = `<a href="${finalUrl}" target="_blank" class="btn-transit-link">🔗 打開交通備註網址</a>`;
+                }
 
                 html += `
                 <div class="transit-area">
                     <div class="transit-info">
                         <div class="transit-badge">🚌 交通：${transitMins} 分鐘</div>
                         <div>從 ${item.endTime} 出發，預計 <b>${arrivalTime}</b> 抵達</div>
+                        
                         <div style="color:#2196f3; font-size:11px; margin-top:4px; font-weight:bold;">
                             ${item.routes && item.routes.length > 0 ? '🚀 班次配置：' + item.routes.join(' → ') : ''}
                         </div>
+                        
                         <div class="nav-btn-group">
-                            <a href="${stepNavUrl}" target="_blank" class="btn-nav-step">站對站導航</a>
+                            ${customLinkHtml} <a href="${stepNavUrl}" target="_blank" class="btn-nav-step">站對站導航</a>
                             <a href="${gpsNavUrl}" target="_blank" class="btn-nav-gps">📍 現在位置導航</a>
                         </div>
                     </div>
